@@ -2629,16 +2629,31 @@ void floatTetWild::get_surface(const Mesh& mesh, std::vector<Vector3i>& b_faces,
     if (faces.empty())
         return;
     //
+    #define NL i > 0
+    #define NU i < faces.size() - 1
+    #define OB(n) std::make_tuple(faces[i    ][0], faces[i    ][1], faces[i    ][2]) != \
+                  std::make_tuple(faces[i + n][0], faces[i + n][1], faces[i + n][2])
+    #define IB(n) tets[faces[i][3]].scalar != tets[faces[i + n][3]].scalar
     bool is_boundary = true;
     for (int i = 0; i < faces.size(); i++) {
-        if (i < faces.size() - 1 &&
-            std::make_tuple(faces[i][0], faces[i][1], faces[i][2])
-            == std::make_tuple(faces[i + 1][0], faces[i + 1][1], faces[i + 1][2])) {
+        if ((NU) && !(OB(+1)) && !(IB(+1))) {
             is_boundary = false;
         } else {
             if (is_boundary) {
                 b_colors.push_back(tets[faces[i][3]].quality);
-                b_tags.push_back(tets[faces[i][3]].surface_tags[faces[i][4]]);
+                //
+                int n, m;
+                if ((NL) && !(OB(-1)) && (IB(-1))) {
+                    n = tets[faces[i][3]].scalar, m = tets[faces[i - 1][3]].scalar;
+                } else if ((NU) && !(OB(+1)) && (IB(+1))) {
+                    n = tets[faces[i][3]].scalar, m = tets[faces[i + 1][3]].scalar;
+                } else {
+                    n = m = tets[faces[i][3]].surface_tags[faces[i][4]];
+                    if (n == NO_SURFACE_TAG)
+                        n = m = tets[faces[i][3]].scalar;
+                }
+                b_tags.push_back((n + m - 1) * (n + m - 2) / 2 + n);
+                //
                 b_faces.push_back(Vector3i(faces[i][0], faces[i][1], faces[i][2]));
                 bool is_inv = is_inverted(tet_vertices[tets[faces[i][3]][faces[i][4]]],
                                           tet_vertices[faces[i][0]],
